@@ -1,0 +1,72 @@
+@page "/persons/{Id:int}"
+@using PersonenVerwaltung.UI.Services
+@inject PersonApiService Api
+@inject NavigationManager Nav
+
+<PageTitle>Personendetails</PageTitle>
+
+<button @onclick="GoBack">← Zurück</button>
+
+@if (isLoading)
+{
+    <p>Wird geladen...</p>
+}
+else if (person == null)
+{
+    <p>Person nicht gefunden.</p>
+}
+else
+{
+    <h1>@person.Vorname @person.Name</h1>
+    <p><strong>Geburtsdatum:</strong> @person.Geburtsdatum.ToString("dd.MM.yyyy")</p>
+    @if (!string.IsNullOrEmpty(person.NameUppercase))
+    {
+        <p><strong>Name (Groß):</strong> @person.NameUppercase</p>
+    }
+
+    <h2>Anschriften</h2>
+    @if (person.Anschriften.Count == 0)
+    {
+        <p>Keine Anschriften vorhanden.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var a in person.Anschriften)
+            {
+                <li>@a.Strasse @a.Hausnummer, @a.Postleitzahl @a.Ort</li>
+            }
+        </ul>
+    }
+
+    <h2>Telefonnummern</h2>
+    @if (person.Telefonverbindungen.Count == 0)
+    {
+        <p>Keine Telefonnummern vorhanden.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var t in person.Telefonverbindungen)
+            {
+                <li>@t.Nummer</li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private PersonDetail? person;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        person = await Api.GetPersonDetailAsync(Id);
+        isLoading = false;
+    }
+
+    private void GoBack() => Nav.NavigateTo("/");
+}

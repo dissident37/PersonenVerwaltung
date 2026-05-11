@@ -1,6 +1,7 @@
 @page "/"
 @using PersonenVerwaltung.UI.Services
 @inject PersonApiService Api
+@inject NavigationManager Nav
 
 <PageTitle>Personenverwaltung</PageTitle>
 
@@ -40,7 +41,7 @@ else if (personen.Count > 0)
         <tbody>
             @foreach (var p in personen)
             {
-                <tr @onclick="() => OpenDetail(p.Id)" style="cursor:pointer">
+                <tr @onclick="() => Nav.NavigateTo($\"/persons/{p.Id}\")" style="cursor:pointer">
                     <td>
                         @if (editingId == p.Id)
                         {
@@ -79,55 +80,9 @@ else if (personen.Count > 0)
     </table>
 }
 
-@if (selectedPerson != null)
-{
-    <div class="modal-overlay" @onclick="CloseDetail">
-        <div class="modal" @onclick:stopPropagation="true">
-            <button class="close-btn" @onclick="CloseDetail">✕</button>
-            <h2>@selectedPerson.Vorname @selectedPerson.Name</h2>
-            <p><strong>Geburtsdatum:</strong> @selectedPerson.Geburtsdatum.ToString("dd.MM.yyyy")</p>
-            @if (!string.IsNullOrEmpty(selectedPerson.NameUppercase))
-            {
-                <p><strong>Name (Groß):</strong> @selectedPerson.NameUppercase</p>
-            }
-
-            <h3>Anschriften</h3>
-            @if (selectedPerson.Anschriften.Count == 0)
-            {
-                <p>Keine Anschriften vorhanden.</p>
-            }
-            else
-            {
-                <ul>
-                    @foreach (var a in selectedPerson.Anschriften)
-                    {
-                        <li>@a.Strasse @a.Hausnummer, @a.Postleitzahl @a.Ort</li>
-                    }
-                </ul>
-            }
-
-            <h3>Telefonnummern</h3>
-            @if (selectedPerson.Telefonverbindungen.Count == 0)
-            {
-                <p>Keine Telefonnummern vorhanden.</p>
-            }
-            else
-            {
-                <ul>
-                    @foreach (var t in selectedPerson.Telefonverbindungen)
-                    {
-                        <li>@t.Nummer</li>
-                    }
-                </ul>
-            }
-        </div>
-    </div>
-}
-
 @code {
     private string searchName = string.Empty;
     private List<PersonListItem> personen = new();
-    private PersonDetail? selectedPerson;
     private bool isLoading;
     private bool hasLoaded;
     private string? errorMessage;
@@ -156,13 +111,6 @@ else if (personen.Count > 0)
             isLoading = false;
         }
     }
-
-    private async Task OpenDetail(int id)
-    {
-        selectedPerson = await Api.GetPersonDetailAsync(id);
-    }
-
-    private void CloseDetail() => selectedPerson = null;
 
     private void StartEdit(PersonListItem p)
     {

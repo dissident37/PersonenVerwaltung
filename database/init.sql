@@ -1,15 +1,15 @@
 -- Datenbankinitialisierung fuer PersonenVerwaltung
 
--- Datenbank erstellen (wird vom Docker-Entrypoint automatisch erstellt)
--- CREATE DATABASE personenverwaltung;
+-- ==========================================================
+-- Tabellen und Beziehungen
+-- ==========================================================
 
 -- Tabelle Person
 CREATE TABLE IF NOT EXISTS "Person" (
     "Id"            SERIAL PRIMARY KEY,
     "Name"          VARCHAR(100) NOT NULL,
     "Vorname"       VARCHAR(100) NOT NULL,
-    "Geburtsdatum"  DATE NOT NULL,
-    "NameUppercase" VARCHAR(100)
+    "Geburtsdatum"  DATE NOT NULL
 );
 
 -- Tabelle Anschrift
@@ -40,6 +40,10 @@ CREATE TABLE IF NOT EXISTS "Telefonverbindung" (
 -- Indizes fuer Fremdschluessel
 CREATE INDEX IF NOT EXISTS "IX_Anschrift_PersonId" ON "Anschrift"("PersonId");
 CREATE INDEX IF NOT EXISTS "IX_Telefonverbindung_PersonId" ON "Telefonverbindung"("PersonId");
+
+-- ==========================================================
+-- Musterdaten
+-- ==========================================================
 
 -- Beispieldaten: Personen
 INSERT INTO "Person" ("Name", "Vorname", "Geburtsdatum") VALUES
@@ -100,7 +104,7 @@ INSERT INTO "Telefonverbindung" ("PersonId", "Nummer") VALUES
     (7, 'keine-nummer');
 
 -- ==========================================================
--- Abfragen (als Kommentare)
+-- Auswertungen
 -- ==========================================================
 
 -- Anzahl aller Personen:
@@ -128,22 +132,6 @@ INSERT INTO "Telefonverbindung" ("PersonId", "Nummer") VALUES
 -- ORDER BY "AnzahlPersonen" DESC;
 
 -- ==========================================================
--- ALTER TABLE: Spalte NameUppercase hinzufuegen
--- (bereits in CREATE TABLE enthalten, hier als nachtraegliche Aenderung)
--- ==========================================================
--- ALTER TABLE "Person" ADD COLUMN IF NOT EXISTS "NameUppercase" VARCHAR(100);
-
--- UPDATE: NameUppercase befuellen
-UPDATE "Person" SET "NameUppercase" = UPPER("Name");
-
--- ==========================================================
--- DELETE: Telefonnummern loeschen, die nicht mit '0' oder '+' beginnen
--- ==========================================================
-DELETE FROM "Telefonverbindung"
-WHERE "Nummer" NOT LIKE '0%'
-  AND "Nummer" NOT LIKE '+%';
-
--- ==========================================================
 -- VIEW: vw_PersonDetails
 -- ==========================================================
 CREATE OR REPLACE VIEW "vw_PersonDetails" AS
@@ -152,7 +140,6 @@ SELECT
     p."Name",
     p."Vorname",
     p."Geburtsdatum",
-    p."NameUppercase",
     a."Id"            AS "AnschriftId",
     a."Postleitzahl",
     a."Ort",
@@ -163,3 +150,20 @@ SELECT
 FROM "Person" p
 LEFT JOIN "Anschrift" a         ON a."PersonId" = p."Id"
 LEFT JOIN "Telefonverbindung" t ON t."PersonId" = p."Id";
+
+-- ==========================================================
+-- DELETE: Telefonnummern loeschen, die nicht mit '0' oder '+' beginnen
+-- ==========================================================
+DELETE FROM "Telefonverbindung"
+WHERE "Nummer" NOT LIKE '0%'
+  AND "Nummer" NOT LIKE '+%';
+
+-- ==========================================================
+-- ALTER TABLE: Spalte NameUppercase hinzufuegen
+-- ==========================================================
+ALTER TABLE "Person" ADD COLUMN IF NOT EXISTS "NameUppercase" VARCHAR(100);
+
+-- ==========================================================
+-- UPDATE: NameUppercase befuellen
+-- ==========================================================
+UPDATE "Person" SET "NameUppercase" = UPPER("Name");
