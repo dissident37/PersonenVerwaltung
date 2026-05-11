@@ -56,3 +56,6 @@ appsettings.Local.json
 # Windows
 Thumbs.db
 Desktop.ini
+
+# Aufgabenstellungen
+*.pdf
