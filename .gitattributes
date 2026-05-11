@@ -1,0 +1,6 @@
+# Einheitliche Zeilenenden fuer alle Textdateien
+* text=auto eol=lf
+
+# Windows-Skripte behalten CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf

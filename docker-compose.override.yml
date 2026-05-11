@@ -1,0 +1,12 @@
+# Lokale Entwicklungsüberschreibungen
+services:
+
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      DATABASE_URL: "Host=db;Database=personenverwaltung;Username=postgres;Password=postgres"
+
+  ui:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      API_URL: "http://localhost:8080"

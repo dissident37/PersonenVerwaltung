@@ -1,0 +1,58 @@
+## Visual Studio / .NET gitignore
+
+# Build-Ausgabe
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# NuGet Pakete
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!**/packages/build/
+*.lock.json
+!packages.lock.json
+
+# Visual Studio Dateien
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# Rider
+.idea/
+*.sln.iml
+
+# Test-Ergebnisse
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+
+# ASP.NET / Blazor
+**/wwwroot/lib/
+**/wwwroot/dist/
+
+# Docker
+.dockerignore
+
+# Umgebungsvariablen (keine Secrets einchecken)
+.env
+.env.local
+appsettings.Development.json
+appsettings.Local.json
+
+# Claude Code
+.claude/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini

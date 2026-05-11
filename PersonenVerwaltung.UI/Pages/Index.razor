@@ -1,0 +1,189 @@
+@page "/"
+@using PersonenVerwaltung.UI.Services
+@inject PersonApiService Api
+
+<PageTitle>Personenverwaltung</PageTitle>
+
+<h1>Personenverwaltung</h1>
+
+<div class="search-bar">
+    <input type="text"
+           placeholder="Name oder Vorname suchen..."
+           @bind="searchName"
+           @bind:event="oninput" />
+    <button @onclick="LoadPersonen">Personen laden</button>
+</div>
+
+@if (isLoading)
+{
+    <p>Wird geladen...</p>
+}
+else if (errorMessage != null)
+{
+    <p class="error">@errorMessage</p>
+}
+else if (personen.Count == 0 && hasLoaded)
+{
+    <p>Keine Personen gefunden.</p>
+}
+else if (personen.Count > 0)
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Vorname</th>
+                <th>Geburtsdatum</th>
+                <th>Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in personen)
+            {
+                <tr @onclick="() => OpenDetail(p.Id)" style="cursor:pointer">
+                    <td>
+                        @if (editingId == p.Id)
+                        {
+                            <input @bind="editName" @onclick:stopPropagation="true" />
+                        }
+                        else
+                        {
+                            @p.Name
+                        }
+                    </td>
+                    <td>
+                        @if (editingId == p.Id)
+                        {
+                            <input @bind="editVorname" @onclick:stopPropagation="true" />
+                        }
+                        else
+                        {
+                            @p.Vorname
+                        }
+                    </td>
+                    <td>@p.Geburtsdatum.ToString("dd.MM.yyyy")</td>
+                    <td @onclick:stopPropagation="true">
+                        @if (editingId == p.Id)
+                        {
+                            <button @onclick="() => SavePerson(p.Id)">Sichern</button>
+                            <button @onclick="CancelEdit">Abbrechen</button>
+                        }
+                        else
+                        {
+                            <button @onclick="() => StartEdit(p)">Bearbeiten</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (selectedPerson != null)
+{
+    <div class="modal-overlay" @onclick="CloseDetail">
+        <div class="modal" @onclick:stopPropagation="true">
+            <button class="close-btn" @onclick="CloseDetail">✕</button>
+            <h2>@selectedPerson.Vorname @selectedPerson.Name</h2>
+            <p><strong>Geburtsdatum:</strong> @selectedPerson.Geburtsdatum.ToString("dd.MM.yyyy")</p>
+            @if (!string.IsNullOrEmpty(selectedPerson.NameUppercase))
+            {
+                <p><strong>Name (Groß):</strong> @selectedPerson.NameUppercase</p>
+            }
+
+            <h3>Anschriften</h3>
+            @if (selectedPerson.Anschriften.Count == 0)
+            {
+                <p>Keine Anschriften vorhanden.</p>
+            }
+            else
+            {
+                <ul>
+                    @foreach (var a in selectedPerson.Anschriften)
+                    {
+                        <li>@a.Strasse @a.Hausnummer, @a.Postleitzahl @a.Ort</li>
+                    }
+                </ul>
+            }
+
+            <h3>Telefonnummern</h3>
+            @if (selectedPerson.Telefonverbindungen.Count == 0)
+            {
+                <p>Keine Telefonnummern vorhanden.</p>
+            }
+            else
+            {
+                <ul>
+                    @foreach (var t in selectedPerson.Telefonverbindungen)
+                    {
+                        <li>@t.Nummer</li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private string searchName = string.Empty;
+    private List<PersonListItem> personen = new();
+    private PersonDetail? selectedPerson;
+    private bool isLoading;
+    private bool hasLoaded;
+    private string? errorMessage;
+
+    // Inline-Bearbeitung
+    private int? editingId;
+    private string editName = string.Empty;
+    private string editVorname = string.Empty;
+
+    private async Task LoadPersonen()
+    {
+        isLoading = true;
+        errorMessage = null;
+        hasLoaded = false;
+        try
+        {
+            personen = await Api.GetPersonenAsync(searchName);
+            hasLoaded = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Fehler beim Laden: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OpenDetail(int id)
+    {
+        selectedPerson = await Api.GetPersonDetailAsync(id);
+    }
+
+    private void CloseDetail() => selectedPerson = null;
+
+    private void StartEdit(PersonListItem p)
+    {
+        editingId = p.Id;
+        editName = p.Name;
+        editVorname = p.Vorname;
+    }
+
+    private void CancelEdit() => editingId = null;
+
+    private async Task SavePerson(int id)
+    {
+        var success = await Api.UpdatePersonAsync(id, editName, editVorname);
+        if (success)
+        {
+            editingId = null;
+            await LoadPersonen();
+        }
+        else
+        {
+            errorMessage = "Fehler beim Speichern.";
+        }
+    }
+}
