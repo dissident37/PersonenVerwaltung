@@ -9,4 +9,4 @@ services:
   ui:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      API_URL: "http://localhost:8080"
+      API_URL: "http://api:8080"
