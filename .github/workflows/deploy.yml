@@ -26,7 +26,7 @@ jobs:
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             set -e
-            cd /opt/personenverwaltung
+            cd /srv/personenverwaltung
             git pull origin main
             docker compose up -d --build
           EOF
