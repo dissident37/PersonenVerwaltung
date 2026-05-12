@@ -2,25 +2,11 @@
 
 Dieses Dokument ordnet jeden Punkt der Aufgabenstellung der entsprechenden Stelle im Quellcode zu.
 
-## Live-Demo
-
-- **UI:** https://personen.konstantinsittner.de
-- **API + Swagger:** https://personen-api.konstantinsittner.de/swagger
-- **GitHub:** https://github.com/dissident37/PersonenVerwaltung
-
-## Lokales Starten
-
-```bash
-docker compose up -d --build
-```
-
-Danach ist die Anwendung unter http://localhost:8081 erreichbar. Weitere Details siehe [README.md](README.md).
-
 ---
 
 ## Teil 1 — Datenbanksysteme und SQL
 
-Die komplette Lösung der SQL-Aufgabe befindet sich als ein einziges Skript in [database/init.sql](database/init.sql).
+Die gesamte Lösung der SQL-Aufgabe befindet sich als ein zusammenhängendes Skript in [database/init.sql](database/init.sql).
 
 | Aufgabenstellung | Umsetzung |
 |---|---|
@@ -39,14 +25,7 @@ Die komplette Lösung der SQL-Aufgabe befindet sich als ein einziges Skript in [
 
 ### Hinweis zur Datenbankwahl
 
-Die Aufgabe nennt Microsoft SQL Server als **bevorzugtes**, aber nicht zwingendes RDBMS. Gewählt wurde **PostgreSQL** aus folgenden Gründen:
-
-- Open Source, keine Lizenzkosten
-- Plattformunabhängig (läuft im Docker-Container)
-- Einfache Reproduzierbarkeit der gesamten Umgebung mit einem einzigen `docker compose up`
-- Voller SQL-Standard-Support für alle in der Aufgabe geforderten Konstrukte
-
-Die SQL-Syntax ist nahezu identisch zu T-SQL; ein Portieren auf MSSQL wäre mit minimalen Änderungen möglich (`SERIAL` → `IDENTITY`).
+Die Aufgabe nennt Microsoft SQL Server als **bevorzugtes**, aber nicht zwingendes RDBMS. Gewählt wurde **PostgreSQL**, da die gesamte Lösung in einer containerisierten, plattformunabhängigen Umgebung entwickelt und betrieben wird (Hintergrund siehe Anschreiben). Die verwendete SQL-Syntax ist nahezu identisch zu T-SQL; eine Portierung auf MSSQL wäre mit minimalen Änderungen möglich (`SERIAL` → `IDENTITY`).
 
 ---
 
@@ -64,7 +43,7 @@ Die Applikation ist als **3-Schichten-Architektur** in drei separaten Projekten 
 
 | Aufgabenstellung | Umsetzung |
 |---|---|
-| Relationales DBMS + Struktur aus SQL-Aufgabe | PostgreSQL (Container `personenverwaltung-db`), Schema aus [database/init.sql](database/init.sql) |
+| Relationales DBMS + Struktur aus SQL-Aufgabe | PostgreSQL, Schema aus [database/init.sql](database/init.sql) |
 | UI-Technologie aus .NET-Framework | **Blazor Server** (in der Aufgabenstellung explizit als Option genannt) |
 | ORM für Datenbankzugriff | **Entity Framework Core** + Npgsql, siehe [AppDbContext.cs](PersonenVerwaltung.Data/AppDbContext.cs) |
 | 3-Schichten-Architektur | drei getrennte Projekte (siehe Tabelle oben) |
@@ -73,38 +52,3 @@ Die Applikation ist als **3-Schichten-Architektur** in drei separaten Projekten 
 | Optionales Suchkriterium in Textbox | Index.razor:11–14 → `GET /api/persons?name=...` |
 | Detaildaten in neuem Dialog-Fenster bei Auswahl einer Person | Separate Seite [Pages/PersonDetail.razor](PersonenVerwaltung.UI/Pages/PersonDetail.razor) unter Route `/persons/{id}` |
 | **Zusatzaufgabe:** Namen ändern + Schaltfläche „Sichern" | Inline-Editor in Index.razor:45–75, gespeichert über `PUT /api/persons/{id}` |
-
-### REST-API-Endpunkte
-
-| Methode | Route | Beschreibung |
-|---|---|---|
-| `GET` | `/api/persons?name=` | Liste aller Personen, optional gefiltert nach Name oder Vorname |
-| `GET` | `/api/persons/{id}` | Eine Person mit allen Anschriften und Telefonnummern |
-| `PUT` | `/api/persons/{id}` | Name und Vorname aktualisieren (Zusatzaufgabe) |
-
-Implementierung: [PersonsController.cs](PersonenVerwaltung.API/Controllers/PersonsController.cs).
-Interaktive Dokumentation via Swagger: https://personen-api.konstantinsittner.de/swagger.
-
-### Datenfluss
-
-```
-Browser
-   ↓ HTTP (Blazor Server)
-UI  ─────►  PersonApiService  ─────►  HTTP/JSON
-                                          ↓
-                                    PersonsController (REST)
-                                          ↓
-                                    IPersonRepository
-                                          ↓
-                                    AppDbContext (EF Core)
-                                          ↓
-                                    PostgreSQL
-```
-
----
-
-## Bereitstellung / Deployment
-
-- **Containerisierung:** komplette Umgebung in [docker-compose.yml](docker-compose.yml)
-- **Reverse-Proxy:** Nginx-Konfiguration in [nginx/personenverwaltung.conf](nginx/personenverwaltung.conf) (HTTPS via Let's Encrypt)
-- **CI/CD:** automatisches Deployment via GitHub Actions bei Push auf `main` ([.github/workflows/deploy.yml](.github/workflows/deploy.yml))
