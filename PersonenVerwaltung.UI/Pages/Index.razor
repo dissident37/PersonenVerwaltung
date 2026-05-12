@@ -41,7 +41,7 @@ else if (personen.Count > 0)
         <tbody>
             @foreach (var p in personen)
             {
-                <tr @onclick="() => Nav.NavigateTo($\"/persons/{p.Id}\")" style="cursor:pointer">
+                <tr @onclick="() => { if (editingId != p.Id) Nav.NavigateTo($\"/persons/{p.Id}\"); }" style="cursor:pointer">
                     <td>
                         @if (editingId == p.Id)
                         {
