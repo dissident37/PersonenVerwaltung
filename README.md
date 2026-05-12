@@ -2,6 +2,15 @@
 
 ASP.NET Core 8 Anwendung zur Verwaltung von Personen, Anschriften und Telefonnummern.
 
+## Live-Demo
+
+| Dienst        | URL                                                            |
+|---------------|----------------------------------------------------------------|
+| UI            | https://personen.konstantinsittner.de                          |
+| API + Swagger | https://personen-api.konstantinsittner.de/swagger              |
+
+Eine Zuordnung der Aufgabenstellung zu den entsprechenden Code-Stellen findet sich in [LÖSUNG.md](LÖSUNG.md).
+
 ## Projektstruktur
 
 ```
@@ -34,12 +43,12 @@ docker compose up -d --build
 
 Nach dem Start sind folgende Dienste erreichbar:
 
-| Dienst  | URL                        |
-|---------|----------------------------|
-| UI      | http://localhost:8081      |
-| API     | http://localhost:8080      |
-| Swagger | http://localhost:8080/swagger |
-| Adminer | http://localhost:8082      |
+| Dienst  | URL                            |
+|---------|--------------------------------|
+| UI      | http://localhost:8081          |
+| API     | http://localhost:8080          |
+| Swagger | http://localhost:8080/swagger  |
+| Adminer | http://localhost:8082          |
 
 ### Adminer-Login
 
@@ -61,7 +70,7 @@ docker compose down
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8)
 - PostgreSQL (lokal oder via Docker)
 
-### API starten
+### API starten (Port 5000)
 
 ```bash
 cd PersonenVerwaltung.API
@@ -69,7 +78,7 @@ $env:DATABASE_URL = "Host=localhost;Database=personenverwaltung;Username=postgre
 dotnet run
 ```
 
-### UI starten
+### UI starten (Port 5001)
 
 ```bash
 cd PersonenVerwaltung.UI
@@ -84,18 +93,18 @@ dotnet run
 1. Docker und Docker Compose installieren
 2. Repository klonen:
    ```bash
-   git clone <repo-url> /opt/personenverwaltung
+   git clone <repo-url> /srv/personenverwaltung
    ```
 
 ### GitHub Secrets konfigurieren
 
 Im GitHub Repository unter **Settings → Secrets and variables → Actions** folgende Secrets anlegen:
 
-| Secret        | Beschreibung                            |
-|---------------|-----------------------------------------|
-| `VPS_HOST`    | Hostname/IP des VPS (z.B. `konstantinsittner.de`) |
-| `VPS_USER`    | SSH-Benutzer (z.B. `root`)             |
-| `VPS_SSH_KEY` | Privater SSH-Schlüssel für den VPS     |
+| Secret        | Beschreibung                                       |
+|---------------|----------------------------------------------------|
+| `VPS_HOST`    | Hostname/IP des VPS (z.B. `konstantinsittner.de`)  |
+| `VPS_USER`    | SSH-Benutzer (z.B. `root`)                         |
+| `VPS_SSH_KEY` | Privater SSH-Schlüssel für den VPS                 |
 
 ### Nginx einrichten
 
@@ -105,6 +114,12 @@ Nginx-Konfiguration auf dem VPS kopieren:
 cp nginx/personenverwaltung.conf /etc/nginx/sites-available/
 ln -s /etc/nginx/sites-available/personenverwaltung.conf /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
+```
+
+HTTPS via Let's Encrypt:
+
+```bash
+certbot --nginx -d personen.konstantinsittner.de -d personen-api.konstantinsittner.de
 ```
 
 ### Automatisches Deployment
@@ -122,9 +137,11 @@ Bei jedem Push auf `main` wird automatisch via GitHub Actions deployed:
 | GET     | `/api/persons/{id}`  | Eine Person mit Anschriften und Telefon   |
 | PUT     | `/api/persons/{id}`  | Name und Vorname aktualisieren            |
 
+Interaktive Dokumentation: [Swagger UI](https://personen-api.konstantinsittner.de/swagger).
+
 ## Umgebungsvariablen
 
-| Variable       | Dienst | Beschreibung                    |
-|----------------|--------|---------------------------------|
+| Variable       | Dienst | Beschreibung                       |
+|----------------|--------|------------------------------------|
 | `DATABASE_URL` | API    | PostgreSQL Verbindungszeichenfolge |
-| `API_URL`      | UI     | Basis-URL der API               |
+| `API_URL`      | UI     | Basis-URL der API                  |
