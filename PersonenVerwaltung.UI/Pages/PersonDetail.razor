@@ -1,37 +1,55 @@
+@*
+    WAS IST DAS: Die Detailseite einer einzelnen Person (Stammdaten + Anschriften + Telefonnummern).
+    WARUM BRAUCHEN WIR DAS: Sie zeigt das vollständige Bild zu einer Person, das die Liste auf der Startseite nicht zeigt.
+    IM VORSTELLUNGSGESPRÄCH SAGEN:
+      "Diese Komponente liest die Id aus der URL als Routen-Parameter und lädt damit beim Start die Detaildaten
+       von der API. Geladen wird in OnInitializedAsync – einer Lifecycle-Methode, die Blazor automatisch aufruft,
+       wenn die Komponente erstellt wird."
+*@
+
+@* Hinweis: @page/@using/@inject sind "Direktiven" und müssen allein auf ihrer Zeile stehen –
+   deshalb stehen die Erklärungen hier als eigene Kommentarzeilen darüber. *@
+@* Routen-Parameter: {Id:int} liest die Ganzzahl aus der URL und steckt sie ins Feld "Id". *@
 @page "/persons/{Id:int}"
 @using PersonenVerwaltung.UI.Services
+@* API-Service per Dependency Injection. *@
 @inject PersonApiService Api
+@* NavigationManager: zum Zurücknavigieren auf die Startseite. *@
 @inject NavigationManager Nav
 
 <PageTitle>Personendetails</PageTitle>
 
-<button @onclick="GoBack">← Zurück</button>
+<button @onclick="GoBack">← Zurück</button>   @* Klick ruft GoBack() auf -> zurück zur Liste. *@
 
+@* Drei Zustände, der Reihe nach geprüft: lädt gerade / nicht gefunden / Daten anzeigen. *@
 @if (isLoading)
 {
     <p>Wird geladen...</p>
 }
-else if (person == null)
+else if (person == null)               @* null = die API hat keine Person zu dieser Id geliefert (z.B. 404). *@
 {
     <p>Person nicht gefunden.</p>
 }
 else
 {
+    @* Ab hier ist sicher, dass "person" nicht null ist -> wir dürfen gefahrlos darauf zugreifen. *@
     <h1>@person.Vorname @person.Name</h1>
     <p><strong>Geburtsdatum:</strong> @person.Geburtsdatum.ToString("dd.MM.yyyy")</p>
+    @* NameUppercase nur zeigen, wenn es gefüllt ist (es ist optional/nullable). *@
     @if (!string.IsNullOrEmpty(person.NameUppercase))
     {
         <p><strong>Name (Groß):</strong> @person.NameUppercase</p>
     }
 
     <h2>Anschriften</h2>
-    @if (person.Anschriften.Count == 0)
+    @if (person.Anschriften.Count == 0)    @* Liste leer? -> Hinweistext statt leerer Aufzählung. *@
     {
         <p>Keine Anschriften vorhanden.</p>
     }
     else
     {
         <ul>
+            @* für jede Anschrift einen Listenpunkt erzeugen. *@
             @foreach (var a in person.Anschriften)
             {
                 <li>@a.Strasse @a.Hausnummer, @a.Postleitzahl @a.Ort</li>
@@ -56,17 +74,23 @@ else
 }
 
 @code {
+    // [Parameter] = diese Eigenschaft wird von außen befüllt – hier aus dem Routen-Parameter {Id:int} der URL.
     [Parameter]
     public int Id { get; set; }
 
+    // Hier kollidieren zwei Dinge namens "PersonDetail": diese Razor-Komponente UND der record im Service.
+    // Darum schreiben wir den vollen Namen aus, damit klar ist, welcher gemeint ist. "?" = darf null sein.
     private PersonenVerwaltung.UI.Services.PersonDetail? person;
-    private bool isLoading = true;
+    private bool isLoading = true;        // startet mit "true", weil beim Aufbau sofort geladen wird.
 
+    // OnInitializedAsync = Lifecycle-Methode von Blazor: läuft automatisch EINMAL, wenn die Komponente erstellt wird.
+    // Ideal, um die Anfangsdaten zu laden.
     protected override async Task OnInitializedAsync()
     {
-        person = await Api.GetPersonDetailAsync(Id);
-        isLoading = false;
+        person = await Api.GetPersonDetailAsync(Id);   // Detaildaten per HTTP von der API holen.
+        isLoading = false;                              // fertig geladen -> Lade-Anzeige aus.
     }
 
+    // Navigation zurück zur Startseite ("/"). "=>" = Kurzform für eine Einzeiler-Methode.
     private void GoBack() => Nav.NavigateTo("/");
 }
