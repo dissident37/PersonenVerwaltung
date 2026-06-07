@@ -1,32 +1,28 @@
 namespace PersonenVerwaltung.Data.Models;
 
-/// <summary>
-/// Domänenentität einer Anschrift. Untergeordneter Teil des Aggregats
-/// <see cref="Person"/> (1:n) und Abbild einer Zeile der Tabelle <c>Anschrift</c>.
-/// </summary>
+// Diese Klasse beschreibt eine Anschrift (also eine Adresse) einer Person.
+// Jede Adresse gehört zu genau einer Person. Eine Person kann mehrere Adressen haben.
 public class Anschrift
 {
-    /// <summary>Primärschlüssel.</summary>
+    // Eindeutige Nummer dieser Adresse.
     public int Id { get; set; }
 
-    /// <summary>Fremdschlüssel auf <see cref="Person.Id"/>.</summary>
+    // Nummer der Person, zu der diese Adresse gehört (verweist auf Person.Id).
     public int PersonId { get; set; }
 
-    /// <summary>Postleitzahl. Als Zeichenkette gehalten, um führende Nullen zu bewahren.</summary>
+    // Postleitzahl. Als Text gespeichert, damit eine führende Null (z.B. "01067") nicht verloren geht.
     public string Postleitzahl { get; set; } = string.Empty;
 
-    /// <summary>Ort.</summary>
+    // Ort / Stadt.
     public string Ort { get; set; } = string.Empty;
 
-    /// <summary>Straße.</summary>
+    // Straße.
     public string Strasse { get; set; } = string.Empty;
 
-    /// <summary>Hausnummer. Als Zeichenkette gehalten (Zusätze wie "12a" möglich).</summary>
+    // Hausnummer. Als Text, weil auch Zusätze möglich sind (z.B. "12a").
     public string Hausnummer { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Navigationseigenschaft zur übergeordneten Person. <c>null!</c> unterdrückt die
-    /// Nullable-Warnung, da EF Core die Referenz beim Laden zuverlässig setzt.
-    /// </summary>
+    // Verweis zurück auf die Person, zu der diese Adresse gehört.
+    // Wird beim Laden aus der Datenbank automatisch gesetzt.
     public Person Person { get; set; } = null!;
 }

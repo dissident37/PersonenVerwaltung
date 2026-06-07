@@ -1,23 +1,19 @@
 namespace PersonenVerwaltung.Data.Models;
 
-/// <summary>
-/// Domänenentität einer Telefonverbindung. Untergeordneter Teil des Aggregats
-/// <see cref="Person"/> (1:n) und Abbild einer Zeile der Tabelle <c>Telefonverbindung</c>.
-/// </summary>
+// Diese Klasse beschreibt eine Telefonnummer einer Person.
+// Jede Nummer gehört zu genau einer Person. Eine Person kann mehrere Nummern haben.
 public class Telefonverbindung
 {
-    /// <summary>Primärschlüssel.</summary>
+    // Eindeutige Nummer dieses Eintrags.
     public int Id { get; set; }
 
-    /// <summary>Fremdschlüssel auf <see cref="Person.Id"/>.</summary>
+    // Nummer der Person, zu der diese Telefonnummer gehört (verweist auf Person.Id).
     public int PersonId { get; set; }
 
-    /// <summary>Telefonnummer. Als Zeichenkette gehalten (Vorwahl, Sonderzeichen, führende Null).</summary>
+    // Die Telefonnummer selbst. Als Text gespeichert (wegen Vorwahl, Sonderzeichen und führender Null).
     public string Nummer { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Navigationseigenschaft zur übergeordneten Person. <c>null!</c> unterdrückt die
-    /// Nullable-Warnung, da EF Core die Referenz beim Laden zuverlässig setzt.
-    /// </summary>
+    // Verweis zurück auf die Person, zu der diese Nummer gehört.
+    // Wird beim Laden aus der Datenbank automatisch gesetzt.
     public Person Person { get; set; } = null!;
 }

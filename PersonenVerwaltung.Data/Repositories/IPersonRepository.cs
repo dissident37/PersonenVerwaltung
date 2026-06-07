@@ -2,40 +2,22 @@ using PersonenVerwaltung.Data.Models;
 
 namespace PersonenVerwaltung.Data.Repositories;
 
-/// <summary>
-/// Abstraktion des Datenzugriffs auf <see cref="Person"/>-Entitäten (Repository-Pattern).
-/// Definiert den Vertrag der Datenschicht, unabhängig von der konkreten
-/// Persistenztechnologie.
-/// </summary>
-/// <remarks>
-/// Konsumenten (z. B. der API-Controller) hängen ausschließlich von dieser Abstraktion ab.
-/// Das entkoppelt die darüberliegenden Schichten von Entity Framework Core, ermöglicht den
-/// Austausch der Implementierung und erleichtert die Testbarkeit durch Mocking.
-/// </remarks>
+// Das hier ist ein Interface (eine Art Vertrag).
+// Es listet nur AUF, welche Aufgaben es rund um Personen gibt – also was möglich ist –,
+// sagt aber noch NICHT, WIE das genau gemacht wird. Das "Wie" steht später in PersonRepository.
+// Vorteil: Andere Teile des Programms (z.B. der Controller) müssen nur diesen Vertrag kennen.
+// So lässt sich der Daten-Teil später austauschen oder zum Testen ersetzen, ohne dass der Rest
+// geändert werden muss.
 public interface IPersonRepository
 {
-    /// <summary>
-    /// Lädt alle Personen, optional gefiltert nach einem Suchbegriff.
-    /// </summary>
-    /// <param name="nameFilter">
-    /// Optionaler Suchbegriff; bei Angabe werden Personen geliefert, deren Name oder
-    /// Vorname den Begriff enthält (case-insensitive). <c>null</c> oder leer = kein Filter.
-    /// </param>
-    /// <returns>Die nach Name und Vorname sortierte Treffermenge.</returns>
+    // Holt alle Personen. Gibt man einen Suchtext mit, kommen nur Personen zurück,
+    // deren Name oder Vorname diesen Text enthält. Ohne Suchtext kommen alle.
     Task<IEnumerable<Person>> GetAllAsync(string? nameFilter = null);
 
-    /// <summary>
-    /// Lädt eine einzelne Person samt Anschriften und Telefonverbindungen.
-    /// </summary>
-    /// <param name="id">Primärschlüssel der gesuchten Person.</param>
-    /// <returns>Die Person inklusive Detaildaten oder <c>null</c>, wenn keine existiert.</returns>
+    // Holt eine einzelne Person anhand ihrer Nummer (Id), inklusive Adressen und Telefonnummern.
+    // Gibt es keine Person mit dieser Nummer, kommt "nichts" (null) zurück.
     Task<Person?> GetByIdAsync(int id);
 
-    /// <summary>
-    /// Aktualisiert Name und Vorname einer Person.
-    /// </summary>
-    /// <param name="id">Primärschlüssel der zu ändernden Person.</param>
-    /// <param name="name">Neuer Nachname.</param>
-    /// <param name="vorname">Neuer Vorname.</param>
+    // Ändert Name und Vorname einer bestimmten Person.
     Task UpdateNameAsync(int id, string name, string vorname);
 }

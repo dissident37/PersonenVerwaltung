@@ -1,29 +1,37 @@
 @*
-    Startseite (Route "/") der Blazor-Server-UI. Zeigt die Personenliste, bietet eine
-    Namenssuche und ermöglicht die Inline-Bearbeitung von Name und Vorname. Der Datenzugriff
-    erfolgt ausschließlich über den PersonApiService (HTTP), nicht direkt gegen die Datenbank.
+    Das ist die Startseite. Sie zeigt die Liste aller Personen, hat ein Suchfeld
+    und erlaubt es, Name und Vorname direkt in der Tabelle zu ändern.
+    Die Daten holt sie nicht selbst aus der Datenbank, sondern über den Helfer
+    PersonApiService, der sie bei der API anfragt.
+    (Alles, was mit @ beginnt, ist C#-Code mitten im HTML.)
 *@
 
-@* Direktiven müssen jeweils auf einer eigenen Zeile stehen. *@
+@* Die folgenden Zeilen mit @ müssen jeweils allein stehen, darum die Erklärungen darüber. *@
+@* Diese Seite ist unter der Adresse "/" erreichbar. *@
 @page "/"
 @using PersonenVerwaltung.UI.Services
+@* Holt den Helfer, der mit der API spricht, in die Seite. *@
 @inject PersonApiService Api
+@* Holt den Helfer zum Wechseln der Seite (Navigation). *@
 @inject NavigationManager Nav
 
+@* Setzt den Titel im Browser-Tab. *@
 <PageTitle>Personenverwaltung</PageTitle>
 
 <h1>Personenverwaltung</h1>
 
 <div class="search-bar">
-    @* Zwei-Wege-Bindung an searchName; oninput aktualisiert bei jedem Tastendruck. *@
+    @* Das Suchfeld ist mit "searchName" verbunden: was der Nutzer tippt, landet sofort dort. *@
     <input type="text"
            placeholder="Name oder Vorname suchen..."
            @bind="searchName"
            @bind:event="oninput" />
+    @* Klick auf den Knopf ruft die Methode LoadPersonen auf. *@
     <button @onclick="LoadPersonen">Personen laden</button>
 </div>
 
-@* Bedingte Darstellung nach Zustand: Laden, Fehler, leeres Ergebnis, Tabelle. *@
+@* Je nach Zustand wird etwas anderes angezeigt: erst "lädt", dann ein Fehler,
+   dann "nichts gefunden", und sonst die Tabelle. *@
 @if (isLoading)
 {
     <p>Wird geladen...</p>
@@ -48,14 +56,16 @@ else if (personen.Count > 0)
             </tr>
         </thead>
         <tbody>
+            @* Für jede Person in der Liste eine Tabellenzeile erzeugen. *@
             @foreach (var p in personen)
             {
-                @* Klick auf die Zeile öffnet die Detailseite; das Lambda übergibt die Id. *@
+                @* Ein Klick auf die Zeile öffnet die Detailseite dieser Person. *@
                 <tr @onclick="() => OpenDetail(p.Id)" style="cursor:pointer">
                     <td>
+                        @* Wird gerade DIESE Zeile bearbeitet? Dann ein Eingabefeld zeigen, sonst nur den Text. *@
                         @if (editingId == p.Id)
                         {
-                            @* stopPropagation verhindert, dass der Klick die Detailnavigation auslöst. *@
+                            @* stopPropagation: der Klick ins Feld soll NICHT auch die Zeile (Detail öffnen) auslösen. *@
                             <input @bind="editName" @onclick:stopPropagation="true" />
                         }
                         else
@@ -73,15 +83,19 @@ else if (personen.Count > 0)
                             @p.Vorname
                         }
                     </td>
+                    @* Datum deutsch anzeigen: Tag.Monat.Jahr. *@
                     <td>@p.Geburtsdatum.ToString("dd.MM.yyyy")</td>
+                    @* Klicks in dieser Spalte nicht an die Zeile weitergeben. *@
                     <td @onclick:stopPropagation="true">
                         @if (editingId == p.Id)
                         {
+                            @* Während des Bearbeitens: Sichern oder Abbrechen. *@
                             <button @onclick="() => SavePerson(p.Id)">Sichern</button>
                             <button @onclick="CancelEdit">Abbrechen</button>
                         }
                         else
                         {
+                            @* Sonst: Bearbeiten starten. *@
                             <button @onclick="() => StartEdit(p)">Bearbeiten</button>
                         }
                     </td>
@@ -91,28 +105,28 @@ else if (personen.Count > 0)
     </table>
 }
 
+@* Ab hier kommt der C#-Teil der Seite: die Variablen (der Zustand) und die Methoden (das Verhalten). *@
 @code {
-    // Komponentenzustand.
-    private string searchName = string.Empty;          // An das Suchfeld gebundener Suchbegriff.
-    private List<PersonListItem> personen = new();      // Aktuell geladene Personen.
-    private bool isLoading;                              // Aktiv während eines Ladevorgangs.
-    private bool hasLoaded;                              // Mindestens einmal geladen (steuert "Keine Personen gefunden").
-    private string? errorMessage;                        // Fehlermeldung oder null.
+    // Der Zustand der Seite:
+    private string searchName = string.Empty;          // der aktuelle Suchtext.
+    private List<PersonListItem> personen = new();      // die geladenen Personen (am Start eine leere Liste).
+    private bool isLoading;                              // ist gerade etwas am Laden?
+    private bool hasLoaded;                              // wurde schon mindestens einmal geladen?
+    private string? errorMessage;                        // ein Fehlertext, oder leer wenn alles ok ist.
 
-    // Zustand der Inline-Bearbeitung.
-    private int? editingId;                             // Id der aktuell bearbeiteten Zeile; null = keine.
-    private string editName = string.Empty;            // Zwischenspeicher für den bearbeiteten Namen.
-    private string editVorname = string.Empty;         // Zwischenspeicher für den bearbeiteten Vornamen.
+    // Hilfswerte für das Bearbeiten direkt in der Tabelle:
+    private int? editingId;                             // Nummer der Zeile, die gerade bearbeitet wird; leer = keine.
+    private string editName = string.Empty;            // Zwischenspeicher für den getippten Namen.
+    private string editVorname = string.Empty;         // Zwischenspeicher für den getippten Vornamen.
 
-    /// <summary>
-    /// Lädt die Personen über den API-Service und pflegt Lade- und Fehlerzustand.
-    /// Wird beim Klick auf "Personen laden" und nach dem Speichern aufgerufen.
-    /// </summary>
+    // Holt die Personen über den Helfer und kümmert sich dabei um Lade-Anzeige und Fehler.
+    // Wird beim Klick auf "Personen laden" und nach dem Speichern aufgerufen.
     private async Task LoadPersonen()
     {
-        isLoading = true;
-        errorMessage = null;
+        isLoading = true;        // Lade-Anzeige einschalten.
+        errorMessage = null;     // alten Fehler löschen.
         hasLoaded = false;
+        // Falls beim Laden etwas schiefgeht, fangen wir den Fehler ab, statt die Seite abstürzen zu lassen.
         try
         {
             personen = await Api.GetPersonenAsync(searchName);
@@ -124,13 +138,12 @@ else if (personen.Count > 0)
         }
         finally
         {
-            // finally garantiert das Zurücksetzen der Lade-Anzeige in jedem Fall.
+            // Dieser Teil läuft immer – egal ob es geklappt hat oder nicht. Lade-Anzeige wieder aus.
             isLoading = false;
         }
     }
 
-    /// <summary>Navigiert zur Detailseite der Person, sofern deren Zeile nicht bearbeitet wird.</summary>
-    /// <param name="id">Id der angeklickten Person.</param>
+    // Wechselt zur Detailseite der angeklickten Person – aber nur, wenn die Zeile nicht gerade bearbeitet wird.
     private void OpenDetail(int id)
     {
         if (editingId != id)
@@ -139,8 +152,7 @@ else if (personen.Count > 0)
         }
     }
 
-    /// <summary>Startet die Bearbeitung einer Zeile und füllt die Eingabefelder vor.</summary>
-    /// <param name="p">Die zu bearbeitende Person.</param>
+    // Startet das Bearbeiten einer Zeile und füllt die Eingabefelder mit den aktuellen Werten vor.
     private void StartEdit(PersonListItem p)
     {
         editingId = p.Id;
@@ -148,18 +160,17 @@ else if (personen.Count > 0)
         editVorname = p.Vorname;
     }
 
-    /// <summary>Bricht die Bearbeitung ab.</summary>
+    // Bricht das Bearbeiten ab.
     private void CancelEdit() => editingId = null;
 
-    /// <summary>Speichert die geänderten Werte über die API und lädt die Liste anschließend neu.</summary>
-    /// <param name="id">Id der zu speichernden Person.</param>
+    // Speichert die geänderten Werte über die API und lädt danach die Liste neu.
     private async Task SavePerson(int id)
     {
         var success = await Api.UpdatePersonAsync(id, editName, editVorname);
         if (success)
         {
-            editingId = null;
-            await LoadPersonen();
+            editingId = null;        // Bearbeiten beenden ...
+            await LoadPersonen();    // ... und die Liste frisch laden.
         }
         else
         {

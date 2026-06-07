@@ -1,20 +1,25 @@
 @*
-    Detailseite (Route "/persons/{Id:int}") einer einzelnen Person. Zeigt die Stammdaten
-    sowie die zugehörigen Anschriften und Telefonnummern. Die Id stammt aus der Route; die
-    Daten werden in OnInitializedAsync über den PersonApiService (HTTP) geladen.
+    Das ist die Detailseite einer einzelnen Person. Sie zeigt die Stammdaten
+    sowie alle Adressen und Telefonnummern dieser Person.
+    Welche Person gemeint ist, steht als Nummer in der Adresse der Seite.
+    Die Daten werden beim Öffnen der Seite über die API geholt.
 *@
 
-@* Direktiven müssen jeweils auf einer eigenen Zeile stehen. *@
+@* Die folgenden Zeilen mit @ müssen jeweils allein stehen, darum die Erklärungen darüber. *@
+@* Adresse der Seite: die Zahl am Ende (z.B. /persons/5) landet in der Variablen "Id". *@
 @page "/persons/{Id:int}"
 @using PersonenVerwaltung.UI.Services
+@* Holt den Helfer, der mit der API spricht. *@
 @inject PersonApiService Api
+@* Holt den Helfer zum Wechseln der Seite. *@
 @inject NavigationManager Nav
 
 <PageTitle>Personendetails</PageTitle>
 
+@* Klick führt zurück zur Startseite. *@
 <button @onclick="GoBack">← Zurück</button>
 
-@* Bedingte Darstellung nach Zustand: Laden, nicht gefunden, Daten. *@
+@* Drei Zustände, der Reihe nach: lädt gerade / nicht gefunden / Daten anzeigen. *@
 @if (isLoading)
 {
     <p>Wird geladen...</p>
@@ -27,13 +32,14 @@ else
 {
     <h1>@person.Vorname @person.Name</h1>
     <p><strong>Geburtsdatum:</strong> @person.Geburtsdatum.ToString("dd.MM.yyyy")</p>
-    @* NameUppercase ist optional und wird nur bei vorhandenem Wert angezeigt. *@
+    @* Den Namen in Großbuchstaben nur zeigen, wenn dieses Feld auch gefüllt ist. *@
     @if (!string.IsNullOrEmpty(person.NameUppercase))
     {
         <p><strong>Name (Groß):</strong> @person.NameUppercase</p>
     }
 
     <h2>Anschriften</h2>
+    @* Ist die Liste leer, einen Hinweis zeigen statt einer leeren Aufzählung. *@
     @if (person.Anschriften.Count == 0)
     {
         <p>Keine Anschriften vorhanden.</p>
@@ -41,6 +47,7 @@ else
     else
     {
         <ul>
+            @* Für jede Adresse einen Listenpunkt erzeugen. *@
             @foreach (var a in person.Anschriften)
             {
                 <li>@a.Strasse @a.Hausnummer, @a.Postleitzahl @a.Ort</li>
@@ -65,24 +72,24 @@ else
 }
 
 @code {
-    /// <summary>Aus der Route gebundener Primärschlüssel der anzuzeigenden Person.</summary>
+    // Diese Nummer kommt aus der Adresse der Seite (siehe @page oben) und sagt, welche Person gemeint ist.
     [Parameter]
     public int Id { get; set; }
 
-    // Voll qualifiziert, da der Komponentenname mit dem record PersonDetail kollidiert.
+    // Hier liegen die geladenen Detaildaten der Person. Den vollen Namen schreiben wir aus,
+    // weil es zufällig zwei Dinge namens "PersonDetail" gibt (diese Seite und die Daten-Klasse).
+    // Das Fragezeichen heißt: darf auch leer sein (wenn nichts gefunden wurde).
     private PersonenVerwaltung.UI.Services.PersonDetail? person;
-    private bool isLoading = true;        // Beim Aufbau wird sofort geladen.
+    private bool isLoading = true;        // beim Öffnen wird sofort geladen, darum am Start "true".
 
-    /// <summary>
-    /// Blazor-Lifecycle-Methode: lädt einmalig beim Initialisieren der Komponente die
-    /// Detaildaten von der API.
-    /// </summary>
+    // Diese Methode ruft Blazor automatisch auf, sobald die Seite geöffnet wird.
+    // Sie holt die Detaildaten von der API.
     protected override async Task OnInitializedAsync()
     {
         person = await Api.GetPersonDetailAsync(Id);
-        isLoading = false;
+        isLoading = false;        // fertig geladen – Lade-Anzeige aus.
     }
 
-    /// <summary>Navigiert zurück zur Startseite.</summary>
+    // Geht zurück zur Startseite.
     private void GoBack() => Nav.NavigateTo("/");
 }

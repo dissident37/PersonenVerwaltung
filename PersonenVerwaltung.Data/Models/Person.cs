@@ -1,47 +1,33 @@
 namespace PersonenVerwaltung.Data.Models;
 
-/// <summary>
-/// Domänenentität einer Person und Aggregatwurzel der Datenschicht.
-/// Bildet eine Zeile der Tabelle <c>Person</c> als POCO ab; Entity Framework Core
-/// übernimmt das Mapping zwischen Objekt und Relation. Die Navigationslisten
-/// modellieren die 1:n-Beziehungen zu <see cref="Anschrift"/> und
-/// <see cref="Telefonverbindung"/>.
-/// </summary>
-/// <remarks>
-/// Das Schema wird durch <c>database/init.sql</c> vorgegeben, nicht durch EF-Migrationen.
-/// Änderungen an dieser Klasse müssen mit dem SQL-Skript abgeglichen werden.
-/// </remarks>
+// Diese Klasse beschreibt eine einzelne Person mit allen ihren Daten.
+// Jede Person in der Datenbank-Tabelle "Person" wird im Programm zu so einem Person-Objekt.
+// Eine Person kann mehrere Anschriften (Adressen) und mehrere Telefonnummern haben –
+// die hängen unten als Listen dran.
 public class Person
 {
-    /// <summary>Primärschlüssel. Wird per EF-Core-Konvention (<c>Id</c>) erkannt.</summary>
+    // Eindeutige Nummer dieser Person. Damit lässt sich jede Person sicher wiederfinden.
     public int Id { get; set; }
 
-    /// <summary>Nachname. Standardwert <see cref="string.Empty"/>, um <c>null</c>-Werte auszuschließen.</summary>
+    // Nachname. Startet als leerer Text statt als "nichts" (null), damit er nie unbefüllt ist.
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>Vorname. Standardwert <see cref="string.Empty"/>, um <c>null</c>-Werte auszuschließen.</summary>
+    // Vorname. Startet ebenfalls als leerer Text.
     public string Vorname { get; set; } = string.Empty;
 
-    /// <summary>Geburtsdatum ohne Zeitanteil (<see cref="DateOnly"/>).</summary>
+    // Geburtsdatum – nur das Datum, ohne Uhrzeit (z.B. 06.06.1990).
     public DateOnly Geburtsdatum { get; set; }
 
-    /// <summary>
-    /// Denormalisierte Großschreibung von <see cref="Name"/>. Optional (nullable),
-    /// da das SQL-Skript den Wert befüllt und er bei Namensänderungen in
-    /// <see cref="PersonenVerwaltung.Data.Repositories.PersonRepository.UpdateNameAsync"/>
-    /// synchron gehalten wird.
-    /// </summary>
+    // Der Nachname noch einmal in Großbuchstaben. Diese Zweitkopie wird absichtlich gehalten;
+    // das Fragezeichen bedeutet: das Feld darf auch leer (null) sein.
+    // Es wird beim Ändern des Namens immer mit aktualisiert (siehe PersonRepository).
     public string? NameUppercase { get; set; }
 
-    /// <summary>
-    /// Anschriften der Person (1:n). Mit leerer Liste vorinitialisiert; befüllt durch
-    /// explizites Eager Loading (<c>Include</c>) im Repository.
-    /// </summary>
+    // Liste aller Anschriften (Adressen) dieser Person. Startet als leere Liste.
+    // Eine Person kann viele Anschriften haben.
     public ICollection<Anschrift> Anschriften { get; set; } = new List<Anschrift>();
 
-    /// <summary>
-    /// Telefonverbindungen der Person (1:n). Mit leerer Liste vorinitialisiert; befüllt
-    /// durch explizites Eager Loading (<c>Include</c>) im Repository.
-    /// </summary>
+    // Liste aller Telefonnummern dieser Person. Startet als leere Liste.
+    // Eine Person kann viele Telefonnummern haben.
     public ICollection<Telefonverbindung> Telefonverbindungen { get; set; } = new List<Telefonverbindung>();
 }

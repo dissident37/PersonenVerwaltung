@@ -2,85 +2,72 @@ using System.Net.Http.Json;
 
 namespace PersonenVerwaltung.UI.Services;
 
-// --- Data Transfer Objects für die API-Antworten ---
-// Die folgenden records spiegeln die JSON-Projektionen des API-Controllers wider.
-// Die Feldnamen müssen mit den dort erzeugten anonymen Objekten übereinstimmen;
-// Änderungen an der API sind hier nachzuziehen.
+// --- Kleine Daten-Klassen für die Antworten der API ---
+// Diese Klassen beschreiben, wie die Daten aussehen, die von der API zurückkommen.
+// Wichtig: Sie müssen genau zu dem passen, was der Controller in der API zurückgibt
+// (gleiche Feldnamen). Ändert sich dort etwas, muss es hier ebenfalls geändert werden.
 
-/// <summary>Ein Eintrag der Personenübersicht (Startseite).</summary>
+// Ein Eintrag in der Personen-Übersicht (auf der Startseite).
 public record PersonListItem(int Id, string Name, string Vorname, DateOnly Geburtsdatum);
 
-/// <summary>Vollständige Detaildaten einer Person inklusive Anschriften und Telefonverbindungen.</summary>
+// Die vollständigen Daten einer Person für die Detailseite, inklusive Adressen und Telefonnummern.
 public record PersonDetail(
     int Id,
     string Name,
     string Vorname,
     DateOnly Geburtsdatum,
-    string? NameUppercase,
-    List<AnschriftItem> Anschriften,
-    List<TelefonItem> Telefonverbindungen);
+    string? NameUppercase,                 // darf leer sein (das Fragezeichen).
+    List<AnschriftItem> Anschriften,       // Liste der Adressen.
+    List<TelefonItem> Telefonverbindungen);// Liste der Telefonnummern.
 
-/// <summary>Eine Anschrift innerhalb der Detaildaten.</summary>
+// Eine einzelne Adresse innerhalb der Detaildaten.
 public record AnschriftItem(int Id, string Postleitzahl, string Ort, string Strasse, string Hausnummer);
 
-/// <summary>Eine Telefonverbindung innerhalb der Detaildaten.</summary>
+// Eine einzelne Telefonnummer innerhalb der Detaildaten.
 public record TelefonItem(int Id, string Nummer);
 
-/// <summary>
-/// Typisierter HTTP-Client-Dienst, über den die Blazor-UI mit der REST-API kommuniziert.
-/// Kapselt sämtliche API-Aufrufe an einer Stelle und stellt die Schichtentrennung sicher:
-/// Die UI greift nie direkt auf die Datenbank zu (UI → HTTP → API → Datenschicht).
-/// </summary>
+// Dieser Helfer verschickt die Anfragen von der Oberfläche an die API und nimmt die Antworten entgegen.
+// Die Oberfläche greift NIE direkt auf die Datenbank zu – sie redet nur über diesen Helfer mit der API.
+// So sind alle API-Aufrufe an einer Stelle gebündelt.
 public class PersonApiService
 {
+    // Das Werkzeug zum Verschicken der Anfragen.
     private readonly HttpClient _http;
 
-    /// <summary>
-    /// Initialisiert den Dienst mit dem per Dependency Injection bereitgestellten
-    /// <see cref="HttpClient"/>, dessen Basis-Adresse zentral in <c>Program.cs</c> der UI
-    /// konfiguriert ist.
-    /// </summary>
-    /// <param name="http">Der typisierte HTTP-Client.</param>
+    // Beim Erzeugen wird dieses Werkzeug von außen hereingereicht – samt fest eingestellter API-Adresse.
     public PersonApiService(HttpClient http)
     {
         _http = http;
     }
 
-    /// <summary>
-    /// Lädt die Personenliste, optional gefiltert nach einem Suchbegriff.
-    /// </summary>
-    /// <param name="name">Optionaler Suchbegriff für Name oder Vorname.</param>
-    /// <returns>Die Personenliste; bei leerer Antwort eine leere Liste statt <c>null</c>.</returns>
+    // Holt die Personenliste. Mit einem Suchtext wird nach Name oder Vorname gefiltert.
     public async Task<List<PersonListItem>> GetPersonenAsync(string? name = null)
     {
-        // Suchbegriff URL-sicher kodieren, um fehlerhafte Anfragen zu vermeiden.
+        // Adresse zusammenbauen: ohne Suchtext die einfache Liste, sonst mit Suchteil ?name=...
+        // EscapeDataString macht den Suchtext sicher für die Adresse (z.B. wird ein Leerzeichen umgewandelt).
         var url = string.IsNullOrWhiteSpace(name)
             ? "api/persons"
             : $"api/persons?name={Uri.EscapeDataString(name)}";
 
+        // Anfrage abschicken und die Antwort gleich in eine Liste umwandeln.
+        // Kommt nichts zurück, geben wir lieber eine leere Liste zurück als "nichts" (null).
         return await _http.GetFromJsonAsync<List<PersonListItem>>(url) ?? new();
     }
 
-    /// <summary>
-    /// Lädt die Detaildaten einer einzelnen Person.
-    /// </summary>
-    /// <param name="id">Primärschlüssel der Person.</param>
-    /// <returns>Die Detaildaten oder <c>null</c>, wenn die API mit HTTP 404 antwortet.</returns>
+    // Holt die Detaildaten EINER Person anhand ihrer Nummer.
+    // Gibt es die Person nicht (Antwort 404), kommt "nichts" (null) zurück.
     public async Task<PersonDetail?> GetPersonDetailAsync(int id)
     {
         return await _http.GetFromJsonAsync<PersonDetail>($"api/persons/{id}");
     }
 
-    /// <summary>
-    /// Speichert geänderten Name und Vorname einer Person per PUT.
-    /// </summary>
-    /// <param name="id">Primärschlüssel der Person.</param>
-    /// <param name="name">Neuer Nachname.</param>
-    /// <param name="vorname">Neuer Vorname.</param>
-    /// <returns><c>true</c> bei erfolgreicher Antwort (HTTP 2xx), andernfalls <c>false</c>.</returns>
+    // Schickt geänderten Name und Vorname an die API.
+    // Gibt "true" zurück, wenn es geklappt hat – daran erkennt die Oberfläche, ob sie neu laden soll.
     public async Task<bool> UpdatePersonAsync(int id, string name, string vorname)
     {
+        // Die neuen Werte als Anfrage abschicken.
         var response = await _http.PutAsJsonAsync($"api/persons/{id}", new { Name = name, Vorname = vorname });
+        // "true", wenn die Antwort einen Erfolg meldet; "false" bei einem Fehler.
         return response.IsSuccessStatusCode;
     }
 }

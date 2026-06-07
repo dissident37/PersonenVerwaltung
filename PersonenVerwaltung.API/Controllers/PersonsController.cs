@@ -4,44 +4,37 @@ using PersonenVerwaltung.Data.Repositories;
 
 namespace PersonenVerwaltung.API.Controllers;
 
-/// <summary>
-/// REST-Controller für Personen und HTTP-Einstiegspunkt der Anwendung. Bildet die
-/// API-Schicht der Drei-Schichten-Architektur und delegiert sämtliche Datenzugriffe an
-/// <see cref="IPersonRepository"/>. Die Blazor-UI kommuniziert ausschließlich über diesen
-/// Controller (HTTP/JSON).
-/// </summary>
-/// <remarks>
-/// Die Endpunkte liefern bewusst zugeschnittene Projektionen statt der EF-Entitäten. Das
-/// vermeidet das Offenlegen interner Felder sowie Zyklen bei der JSON-Serialisierung
-/// (Person → Anschrift → Person → …).
-/// </remarks>
-[ApiController]
-[Route("api/persons")]
+// Das ist der Controller (die Anlaufstelle) für alle Web-Anfragen rund um Personen.
+// Hier kommen die Anfragen aus dem Internet an (z.B. "gib mir alle Personen").
+// Der Controller holt die Daten über das Repository und schickt sie als Antwort zurück.
+// Die Benutzeroberfläche (UI) spricht NUR über solche Anfragen mit dem Programm,
+// nie direkt mit der Datenbank.
+//
+// Hinweis: Der Controller gibt nicht die kompletten Person-Objekte zurück, sondern baut sich
+// jeweils eine abgespeckte Version nur mit den nötigen Feldern. So geben wir nichts Unnötiges
+// nach außen und vermeiden Endlosschleifen beim Umwandeln in das Antwortformat.
+
+[ApiController]               // sagt: das ist ein Controller für eine Web-Schnittstelle.
+[Route("api/persons")]       // Grundadresse: alle Anfragen hier beginnen mit /api/persons.
 public class PersonsController : ControllerBase
 {
-    // Abhängigkeit auf die Abstraktion statt auf die konkrete Implementierung (lose Kopplung).
+    // Über dieses Repository (den Daten-Helfer) kommt der Controller an die Personen-Daten.
+    // Er kennt nur den Vertrag (das Interface), nicht die konkrete Umsetzung.
     private readonly IPersonRepository _repo;
 
-    /// <summary>
-    /// Initialisiert den Controller mit dem per Dependency Injection bereitgestellten
-    /// Repository.
-    /// </summary>
-    /// <param name="repo">Datenzugriffsabstraktion für Personen.</param>
+    // Beim Erzeugen wird das Repository von außen hereingereicht.
     public PersonsController(IPersonRepository repo)
     {
         _repo = repo;
     }
 
-    /// <summary>
-    /// Liefert die Personenliste, optional gefiltert nach Name oder Vorname.
-    /// </summary>
-    /// <param name="name">Optionaler Suchbegriff aus der Query (<c>?name=...</c>).</param>
-    /// <returns>HTTP 200 mit der projizierten Personenliste.</returns>
+    // Anfrage: GET /api/persons?name=...
+    // Gibt die Liste aller Personen zurück. Mit "name" kann man nach Name oder Vorname suchen.
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] string? name)
     {
         var persons = await _repo.GetAllAsync(name);
-        // Projektion auf die für die Übersicht benötigten Felder.
+        // Aus jeder Person nur die Felder herausnehmen, die die Übersichtsliste braucht.
         var result = persons.Select(p => new
         {
             p.Id,
@@ -49,23 +42,19 @@ public class PersonsController : ControllerBase
             p.Vorname,
             p.Geburtsdatum
         });
-        return Ok(result);
+        return Ok(result);     // Ok = "alles in Ordnung" (Status 200), dazu die Daten.
     }
 
-    /// <summary>
-    /// Liefert eine einzelne Person mit allen Detaildaten.
-    /// </summary>
-    /// <param name="id">Primärschlüssel der Person.</param>
-    /// <returns>
-    /// HTTP 200 mit der Person inklusive Anschriften und Telefonverbindungen, andernfalls HTTP 404.
-    /// </returns>
-    [HttpGet("{id:int}")]
+    // Anfrage: GET /api/persons/{id}
+    // Gibt eine einzelne Person mit allen Details zurück (inklusive Adressen und Telefonnummern).
+    [HttpGet("{id:int}")]      // {id:int} = an dieser Stelle der Adresse muss eine Zahl stehen.
     public async Task<IActionResult> GetById(int id)
     {
         var person = await _repo.GetByIdAsync(id);
+        // Gibt es die Person nicht, antworten wir mit "nicht gefunden" (Status 404).
         if (person == null) return NotFound();
 
-        // Projektion inklusive der verschachtelten Beziehungen.
+        // Auch hier wieder eine abgespeckte Version bauen – diesmal mit den Adressen und Nummern.
         var result = new
         {
             person.Id,
@@ -73,6 +62,7 @@ public class PersonsController : ControllerBase
             person.Vorname,
             person.Geburtsdatum,
             person.NameUppercase,
+            // Auch jede Adresse auf die nötigen Felder reduzieren.
             Anschriften = person.Anschriften.Select(a => new
             {
                 a.Id,
@@ -87,34 +77,27 @@ public class PersonsController : ControllerBase
                 t.Nummer
             })
         };
-        return Ok(result);
+        return Ok(result);     // Status 200 + die Daten.
     }
 
-    /// <summary>
-    /// Aktualisiert Name und Vorname einer Person.
-    /// </summary>
-    /// <param name="id">Primärschlüssel der zu ändernden Person.</param>
-    /// <param name="request">Die neuen Werte für Name und Vorname.</param>
-    /// <returns>
-    /// HTTP 204 bei Erfolg, HTTP 400 bei leeren Werten, HTTP 404 bei unbekannter Id.
-    /// </returns>
+    // Anfrage: PUT /api/persons/{id}
+    // Ändert Name und Vorname einer Person. Die neuen Werte stehen im Inhalt der Anfrage.
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateName(int id, [FromBody] UpdatePersonRequest request)
     {
-        // Eingabevalidierung vor dem Datenbankzugriff.
+        // Erst prüfen: Name und Vorname dürfen nicht leer sein. Sonst sofort ablehnen (Status 400).
         if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Vorname))
             return BadRequest("Name und Vorname duerfen nicht leer sein.");
 
         var person = await _repo.GetByIdAsync(id);
+        // Gibt es die Person nicht, antworten wir mit "nicht gefunden" (Status 404).
         if (person == null) return NotFound();
 
         await _repo.UpdateNameAsync(id, request.Name, request.Vorname);
-        return NoContent();
+        return NoContent();    // Status 204: "hat geklappt, ich schicke aber nichts zurück".
     }
 }
 
-/// <summary>
-/// Data Transfer Object für den PUT-Endpunkt. Trägt die zu ändernden Felder
-/// (Name, Vorname) aus dem JSON-Anfragekörper.
-/// </summary>
+// Kleine Hilfsklasse nur zum Übertragen von Daten.
+// Genau diese Form (Name + Vorname) erwartet die PUT-Anfrage in ihrem Inhalt.
 public record UpdatePersonRequest(string Name, string Vorname);

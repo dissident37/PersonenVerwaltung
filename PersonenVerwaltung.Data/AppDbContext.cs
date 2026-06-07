@@ -3,60 +3,50 @@ using PersonenVerwaltung.Data.Models;
 
 namespace PersonenVerwaltung.Data;
 
-/// <summary>
-/// Entity-Framework-Core-Kontext und zentraler Zugangspunkt der Datenschicht zur
-/// PostgreSQL-Datenbank. Kapselt das objektrelationale Mapping sowie die
-/// Konfiguration der Entitäten und ihrer Beziehungen.
-/// </summary>
-/// <remarks>
-/// Das physische Schema wird durch <c>database/init.sql</c> definiert; dieser Kontext
-/// verwendet keine EF-Migrationen, sondern bildet das bestehende Schema ab. Die
-/// Konfiguration in <see cref="OnModelCreating"/> muss daher mit dem SQL-Skript
-/// konsistent gehalten werden.
-/// </remarks>
+// Das ist die zentrale Verbindung zur Datenbank.
+// Über diese Klasse liest und schreibt das Programm alle Daten – wir müssen dafür kein SQL
+// selbst schreiben, das übernimmt Entity Framework Core (ein Werkzeug, das C#-Objekte und
+// Datenbank-Tabellen automatisch ineinander übersetzt).
+// Alle anderen Teile, die mit Daten arbeiten, gehen über diese Klasse.
 public class AppDbContext : DbContext
 {
-    /// <summary>
-    /// Initialisiert den Kontext mit den per Dependency Injection bereitgestellten
-    /// Optionen (u. a. Verbindungszeichenfolge und Provider), die in <c>Program.cs</c>
-    /// konfiguriert werden.
-    /// </summary>
-    /// <param name="options">Vom DI-Container gelieferte Kontextoptionen.</param>
+    // Beim Erzeugen werden die Einstellungen (z.B. welche Datenbank, welches Passwort) von außen
+    // hereingereicht. "options" enthält diese Einstellungen; sie kommen aus der Program.cs.
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    /// <summary>Zugriff auf die Tabelle <c>Person</c>.</summary>
-    public DbSet<Person> Personen { get; set; }
+    // Jede dieser drei Zeilen steht für eine Tabelle in der Datenbank.
+    // Über sie stellen wir später unsere Abfragen.
+    public DbSet<Person> Personen { get; set; }                          // Tabelle "Person"
+    public DbSet<Anschrift> Anschriften { get; set; }                    // Tabelle "Anschrift"
+    public DbSet<Telefonverbindung> Telefonverbindungen { get; set; }    // Tabelle "Telefonverbindung"
 
-    /// <summary>Zugriff auf die Tabelle <c>Anschrift</c>.</summary>
-    public DbSet<Anschrift> Anschriften { get; set; }
-
-    /// <summary>Zugriff auf die Tabelle <c>Telefonverbindung</c>.</summary>
-    public DbSet<Telefonverbindung> Telefonverbindungen { get; set; }
-
-    /// <summary>
-    /// Konfiguriert das Mapping der Entitäten auf das vorgegebene Datenbankschema:
-    /// Tabellennamen im Singular sowie die 1:n-Beziehungen mit eingeschränktem
-    /// Löschverhalten zur Wahrung der referentiellen Integrität.
-    /// </summary>
-    /// <param name="modelBuilder">Der von EF Core bereitgestellte Model-Builder.</param>
+    // Hier stellen wir genau ein, wie unsere Klassen zu den Tabellen passen.
+    // Das ist nötig, weil die Tabellen schon fertig in der Datei database/init.sql angelegt sind –
+    // wir müssen dem Programm nur sagen, welche Klasse zu welcher Tabelle gehört und wie die
+    // Verbindungen zwischen den Tabellen aussehen.
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Die EF-Core-Pluralisierungskonvention ("People") wird überschrieben, da das
-        // Schema aus init.sql Tabellennamen im Singular verwendet.
+        // Von sich aus würde das Programm Tabellennamen in der Mehrzahl erwarten (z.B. "People").
+        // Unsere Tabellen heißen aber in der Einzahl. Deshalb sagen wir die Namen hier von Hand.
         modelBuilder.Entity<Person>().ToTable("Person");
         modelBuilder.Entity<Anschrift>().ToTable("Anschrift");
         modelBuilder.Entity<Telefonverbindung>().ToTable("Telefonverbindung");
 
-        // DeleteBehavior.Restrict (ON DELETE NO ACTION) verhindert das Löschen einer
-        // Person, solange abhängige Anschriften existieren. Bewusste Entscheidung zur
-        // Sicherung der referentiellen Integrität gemäß Anforderung – keine Kaskadierung.
+        // Verbindung zwischen Anschrift und Person festlegen:
+        // - Eine Anschrift gehört zu EINER Person.
+        // - Eine Person kann VIELE Anschriften haben.
+        // - Verbunden werden sie über die Spalte PersonId.
+        // Wichtig der letzte Punkt: DeleteBehavior.Restrict heißt "Löschen verbieten".
+        // Solange noch eine Adresse an einer Person hängt, lässt sich die Person nicht löschen.
+        // Das ist Absicht, damit keine Adressen ohne zugehörige Person übrig bleiben.
         modelBuilder.Entity<Anschrift>()
             .HasOne(a => a.Person)
             .WithMany(p => p.Anschriften)
             .HasForeignKey(a => a.PersonId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Identische Beziehungskonfiguration für Telefonverbindungen.
+        // Genau dasselbe für die Telefonnummern: eine Nummer gehört zu einer Person,
+        // eine Person hat viele Nummern, und das Löschen ist ebenso geschützt.
         modelBuilder.Entity<Telefonverbindung>()
             .HasOne(t => t.Person)
             .WithMany(p => p.Telefonverbindungen)
