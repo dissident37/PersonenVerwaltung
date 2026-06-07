@@ -1,40 +1,47 @@
-using Microsoft.AspNetCore.Mvc;          // das Web-API-Framework (Controller, IActionResult, Attribute ...).
+using Microsoft.AspNetCore.Mvc;
 using PersonenVerwaltung.Data.Models;
 using PersonenVerwaltung.Data.Repositories;
 
 namespace PersonenVerwaltung.API.Controllers;
 
-// WAS IST DAS: Der API-Controller – die Klasse, die die HTTP-Anfragen (GET/PUT) für Personen entgegennimmt.
-// WARUM BRAUCHEN WIR DAS: Er ist die "Tür" des Web-Services. Die Blazor-UI spricht NUR über HTTP mit ihm;
-//                         er ruft das Repository auf und gibt die Daten als JSON zurück.
-// IM VORSTELLUNGSGESPRÄCH SAGEN:
-//   "Das ist ein REST-Controller. '[ApiController]' aktiviert API-Komfort wie automatische Modell-Validierung.
-//    '[Route]' legt die Basis-URL fest. Jede Methode ist ein Endpunkt. Wichtig: Ich gebe nicht die EF-Entitäten
-//    direkt zurück, sondern eine projizierte (zugeschnittene) Form – so leake ich keine internen Felder und
-//    vermeide Endlosschleifen beim JSON-Serialisieren (Person -> Anschrift -> Person -> ...)."
-
-// Attribute stehen in eckigen Klammern und geben dem Framework Anweisungen:
-[ApiController]               // markiert die Klasse als Web-API-Controller (z.B. automatische 400 bei ungültigem Body).
-[Route("api/persons")]       // Basis-Adresse: alle Endpunkte hier beginnen mit /api/persons.
-public class PersonsController : ControllerBase   // ControllerBase = Basisklasse für APIs (ohne View-Kram, anders als MVC-"Controller").
+/// <summary>
+/// REST-Controller für Personen und HTTP-Einstiegspunkt der Anwendung. Bildet die
+/// API-Schicht der Drei-Schichten-Architektur und delegiert sämtliche Datenzugriffe an
+/// <see cref="IPersonRepository"/>. Die Blazor-UI kommuniziert ausschließlich über diesen
+/// Controller (HTTP/JSON).
+/// </summary>
+/// <remarks>
+/// Die Endpunkte liefern bewusst zugeschnittene Projektionen statt der EF-Entitäten. Das
+/// vermeidet das Offenlegen interner Felder sowie Zyklen bei der JSON-Serialisierung
+/// (Person → Anschrift → Person → …).
+/// </remarks>
+[ApiController]
+[Route("api/persons")]
+public class PersonsController : ControllerBase
 {
-    private readonly IPersonRepository _repo;     // wir hängen am Interface, nicht an der konkreten Klasse (lose Kopplung).
+    // Abhängigkeit auf die Abstraktion statt auf die konkrete Implementierung (lose Kopplung).
+    private readonly IPersonRepository _repo;
 
-    // Konstruktor: das Repository kommt per Dependency Injection rein (in Program.cs registriert).
+    /// <summary>
+    /// Initialisiert den Controller mit dem per Dependency Injection bereitgestellten
+    /// Repository.
+    /// </summary>
+    /// <param name="repo">Datenzugriffsabstraktion für Personen.</param>
     public PersonsController(IPersonRepository repo)
     {
         _repo = repo;
     }
 
-    // GET /api/persons?name=...   -> Liste aller Personen, optional nach Name/Vorname gefiltert.
-    // WAS: Liefert die Übersichtsliste für die Startseite.
-    // WARUM: Die UI ruft diesen Endpunkt beim Laden und beim Suchen auf.
-    [HttpGet]                                       // dieser Endpunkt reagiert auf HTTP GET.
-    public async Task<IActionResult> GetAll([FromQuery] string? name)   // [FromQuery] = "name" kommt aus der URL (?name=...).
+    /// <summary>
+    /// Liefert die Personenliste, optional gefiltert nach Name oder Vorname.
+    /// </summary>
+    /// <param name="name">Optionaler Suchbegriff aus der Query (<c>?name=...</c>).</param>
+    /// <returns>HTTP 200 mit der projizierten Personenliste.</returns>
+    [HttpGet]
+    public async Task<IActionResult> GetAll([FromQuery] string? name)
     {
         var persons = await _repo.GetAllAsync(name);
-        // Select(...) = "projizieren": wir bauen aus jeder Person ein neues, schlankes Objekt nur mit den
-        // Feldern, die die Liste braucht. "new { ... }" = anonymer Typ (Objekt ohne eigenen Klassennamen).
+        // Projektion auf die für die Übersicht benötigten Felder.
         var result = persons.Select(p => new
         {
             p.Id,
@@ -42,19 +49,23 @@ public class PersonsController : ControllerBase   // ControllerBase = Basisklass
             p.Vorname,
             p.Geburtsdatum
         });
-        return Ok(result);     // Ok(...) = HTTP-Status 200 + die Daten als JSON.
+        return Ok(result);
     }
 
-    // GET /api/persons/{id}   -> eine einzelne Person mit allen Details.
-    // WAS: Liefert Person + Anschriften + Telefonnummern für die Detailseite.
-    // WARUM: Die Detailansicht braucht das komplette Bild zu einer Person.
-    [HttpGet("{id:int}")]      // {id:int} = Platzhalter in der URL, der eine Ganzzahl sein muss (Route Constraint).
+    /// <summary>
+    /// Liefert eine einzelne Person mit allen Detaildaten.
+    /// </summary>
+    /// <param name="id">Primärschlüssel der Person.</param>
+    /// <returns>
+    /// HTTP 200 mit der Person inklusive Anschriften und Telefonverbindungen, andernfalls HTTP 404.
+    /// </returns>
+    [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
         var person = await _repo.GetByIdAsync(id);
-        if (person == null) return NotFound();      // NotFound() = HTTP 404, wenn es die Person nicht gibt.
+        if (person == null) return NotFound();
 
-        // Auch hier projizieren wir auf eine zugeschnittene Form – inkl. der verschachtelten Listen.
+        // Projektion inklusive der verschachtelten Beziehungen.
         var result = new
         {
             person.Id,
@@ -62,7 +73,6 @@ public class PersonsController : ControllerBase   // ControllerBase = Basisklass
             person.Vorname,
             person.Geburtsdatum,
             person.NameUppercase,
-            // verschachtelte Projektion: jede Anschrift wird ebenfalls auf die nötigen Felder reduziert.
             Anschriften = person.Anschriften.Select(a => new
             {
                 a.Id,
@@ -77,29 +87,34 @@ public class PersonsController : ControllerBase   // ControllerBase = Basisklass
                 t.Nummer
             })
         };
-        return Ok(result);     // HTTP 200 + JSON.
+        return Ok(result);
     }
 
-    // PUT /api/persons/{id}   -> ändert Name + Vorname einer Person.
-    // WAS: Nimmt die geänderten Werte aus dem Request-Body entgegen und speichert sie.
-    // WARUM: Über diesen Endpunkt funktioniert die Inline-Bearbeitung in der UI.
-    // (PUT = "ersetze/aktualisiere eine vorhandene Ressource" im REST-Sinn.)
+    /// <summary>
+    /// Aktualisiert Name und Vorname einer Person.
+    /// </summary>
+    /// <param name="id">Primärschlüssel der zu ändernden Person.</param>
+    /// <param name="request">Die neuen Werte für Name und Vorname.</param>
+    /// <returns>
+    /// HTTP 204 bei Erfolg, HTTP 400 bei leeren Werten, HTTP 404 bei unbekannter Id.
+    /// </returns>
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdateName(int id, [FromBody] UpdatePersonRequest request)  // [FromBody] = Daten kommen als JSON im Anfrage-Körper.
+    public async Task<IActionResult> UpdateName(int id, [FromBody] UpdatePersonRequest request)
     {
-        // Eingabe-Validierung: leere Werte ablehnen, bevor wir die DB anfassen.
+        // Eingabevalidierung vor dem Datenbankzugriff.
         if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Vorname))
-            return BadRequest("Name und Vorname duerfen nicht leer sein.");   // BadRequest() = HTTP 400.
+            return BadRequest("Name und Vorname duerfen nicht leer sein.");
 
         var person = await _repo.GetByIdAsync(id);
-        if (person == null) return NotFound();      // existiert die Person nicht -> 404.
+        if (person == null) return NotFound();
 
         await _repo.UpdateNameAsync(id, request.Name, request.Vorname);
-        return NoContent();    // NoContent() = HTTP 204: "erfolgreich, aber ich sende keinen Inhalt zurück".
+        return NoContent();
     }
 }
 
-// record = kompakte, unveränderliche (immutable) Daten-Klasse. Perfekt als reiner Daten-Transport (DTO).
-// "DTO" = Data Transfer Object = Objekt, das nur Daten zwischen UI und API hin- und herträgt.
-// Diese Form erwartet der PUT-Endpunkt im JSON-Body: { "Name": "...", "Vorname": "..." }.
+/// <summary>
+/// Data Transfer Object für den PUT-Endpunkt. Trägt die zu ändernden Felder
+/// (Name, Vorname) aus dem JSON-Anfragekörper.
+/// </summary>
 public record UpdatePersonRequest(string Name, string Vorname);

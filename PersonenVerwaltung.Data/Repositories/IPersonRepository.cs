@@ -2,29 +2,40 @@ using PersonenVerwaltung.Data.Models;
 
 namespace PersonenVerwaltung.Data.Repositories;
 
-// WAS IST DAS: Ein Interface (Vertrag) für den Daten-Zugriff auf Personen.
-// WARUM BRAUCHEN WIR DAS: Es legt fest, WELCHE Methoden es zum Lesen/Ändern von Personen gibt,
-//                         sagt aber NICHT WIE sie funktionieren. Das "Wie" steht in PersonRepository.
-// IM VORSTELLUNGSGESPRÄCH SAGEN:
-//   "Ich arbeite mit dem Repository-Pattern. Das Interface ist der Vertrag, die Klasse die Umsetzung.
-//    Vorteil: Mein API-Controller hängt nur am Interface, nicht an EF Core. So kann ich die Datenschicht
-//    austauschen oder im Test durch eine Attrappe (Mock) ersetzen, ohne den Controller zu ändern.
-//    Das nennt man 'lose Kopplung'."
-//
-// Interface = Vertrag: Wer dieses Interface umsetzt (implementiert), MUSS genau diese Methoden anbieten.
-// Konvention in C#: Interface-Namen beginnen mit "I" (I = Interface).
+/// <summary>
+/// Abstraktion des Datenzugriffs auf <see cref="Person"/>-Entitäten (Repository-Pattern).
+/// Definiert den Vertrag der Datenschicht, unabhängig von der konkreten
+/// Persistenztechnologie.
+/// </summary>
+/// <remarks>
+/// Konsumenten (z. B. der API-Controller) hängen ausschließlich von dieser Abstraktion ab.
+/// Das entkoppelt die darüberliegenden Schichten von Entity Framework Core, ermöglicht den
+/// Austausch der Implementierung und erleichtert die Testbarkeit durch Mocking.
+/// </remarks>
 public interface IPersonRepository
 {
-    // Task<...> = die Methode arbeitet asynchron (async): Sie kann etwas tun, das dauert (DB-Abfrage),
-    //             ohne den ganzen Server zu blockieren. Task<T> = "ein Ergebnis vom Typ T, das später kommt".
-    // IEnumerable<Person> = "eine Liste/Aufzählung von Personen" (zum Durchlaufen, read-only).
-    // "string? nameFilter = null" = optionaler Such-Text; "?" heißt: darf null sein; "= null" = Standardwert.
-    Task<IEnumerable<Person>> GetAllAsync(string? nameFilter = null);   // alle Personen holen, optional gefiltert.
+    /// <summary>
+    /// Lädt alle Personen, optional gefiltert nach einem Suchbegriff.
+    /// </summary>
+    /// <param name="nameFilter">
+    /// Optionaler Suchbegriff; bei Angabe werden Personen geliefert, deren Name oder
+    /// Vorname den Begriff enthält (case-insensitive). <c>null</c> oder leer = kein Filter.
+    /// </param>
+    /// <returns>Die nach Name und Vorname sortierte Treffermenge.</returns>
+    Task<IEnumerable<Person>> GetAllAsync(string? nameFilter = null);
 
-    // Person? = liefert eine Person ODER null, falls die Id nicht existiert. Das "?" zwingt den Aufrufer,
-    //           den Fall "nicht gefunden" zu bedenken (Schutz vor NullReferenceException).
-    Task<Person?> GetByIdAsync(int id);                                 // eine einzelne Person per Id holen (mit Details).
+    /// <summary>
+    /// Lädt eine einzelne Person samt Anschriften und Telefonverbindungen.
+    /// </summary>
+    /// <param name="id">Primärschlüssel der gesuchten Person.</param>
+    /// <returns>Die Person inklusive Detaildaten oder <c>null</c>, wenn keine existiert.</returns>
+    Task<Person?> GetByIdAsync(int id);
 
-    // Ändert nur Name + Vorname einer Person. Gibt nichts zurück (Task ohne <T>) = "nur erledigen, kein Ergebnis".
+    /// <summary>
+    /// Aktualisiert Name und Vorname einer Person.
+    /// </summary>
+    /// <param name="id">Primärschlüssel der zu ändernden Person.</param>
+    /// <param name="name">Neuer Nachname.</param>
+    /// <param name="vorname">Neuer Vorname.</param>
     Task UpdateNameAsync(int id, string name, string vorname);
 }

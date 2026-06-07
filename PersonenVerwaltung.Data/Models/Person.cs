@@ -1,35 +1,47 @@
 namespace PersonenVerwaltung.Data.Models;
 
-// WAS IST DAS: Eine "Entity"-Klasse – das C#-Abbild einer Zeile in der Tabelle "Person".
-// WARUM BRAUCHEN WIR DAS: EF Core verwandelt jede DB-Zeile in so ein Objekt (und umgekehrt).
-//                         Statt mit SQL-Zeilen arbeiten wir im Code mit sauberen Person-Objekten.
-// IM VORSTELLUNGSGESPRÄCH SAGEN:
-//   "Das ist ein POCO – ein 'Plain Old CLR Object', also eine ganz normale C#-Klasse ohne Framework-Ballast.
-//    Jede Eigenschaft (Property) entspricht einer Spalte. Die Property 'Id' wird von EF Core automatisch als
-//    Primärschlüssel erkannt (Konvention: 'Id' oder 'KlassennameId'). Die Listen am Ende sind die
-//    Navigations-Eigenschaften für die 1:n-Beziehungen zu Anschriften und Telefonverbindungen."
+/// <summary>
+/// Domänenentität einer Person und Aggregatwurzel der Datenschicht.
+/// Bildet eine Zeile der Tabelle <c>Person</c> als POCO ab; Entity Framework Core
+/// übernimmt das Mapping zwischen Objekt und Relation. Die Navigationslisten
+/// modellieren die 1:n-Beziehungen zu <see cref="Anschrift"/> und
+/// <see cref="Telefonverbindung"/>.
+/// </summary>
+/// <remarks>
+/// Das Schema wird durch <c>database/init.sql</c> vorgegeben, nicht durch EF-Migrationen.
+/// Änderungen an dieser Klasse müssen mit dem SQL-Skript abgeglichen werden.
+/// </remarks>
 public class Person
 {
-    // Primärschlüssel = eindeutige Kennung jeder Person. Heißt "Id" -> EF Core erkennt das automatisch.
+    /// <summary>Primärschlüssel. Wird per EF-Core-Konvention (<c>Id</c>) erkannt.</summary>
     public int Id { get; set; }
 
-    // string = Text. "= string.Empty" = Startwert ist ein leerer Text ("") statt null.
-    // Das verhindert, dass die Eigenschaft versehentlich null ist (sicherer im Umgang).
+    /// <summary>Nachname. Standardwert <see cref="string.Empty"/>, um <c>null</c>-Werte auszuschließen.</summary>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>Vorname. Standardwert <see cref="string.Empty"/>, um <c>null</c>-Werte auszuschließen.</summary>
     public string Vorname { get; set; } = string.Empty;
 
-    // DateOnly = nur ein Datum OHNE Uhrzeit (z.B. 06.06.1990). Passt zu einem Geburtsdatum.
+    /// <summary>Geburtsdatum ohne Zeitanteil (<see cref="DateOnly"/>).</summary>
     public DateOnly Geburtsdatum { get; set; }
 
-    // "string?" mit Fragezeichen = darf null sein (nullable). Diese Spalte ist optional.
-    // NameUppercase = der Name in Großbuchstaben; eine bewusst doppelt gehaltene (denormalisierte) Kopie.
-    // Wird in PersonRepository.UpdateNameAsync immer mit name.ToUpper() synchron gehalten.
+    /// <summary>
+    /// Denormalisierte Großschreibung von <see cref="Name"/>. Optional (nullable),
+    /// da das SQL-Skript den Wert befüllt und er bei Namensänderungen in
+    /// <see cref="PersonenVerwaltung.Data.Repositories.PersonRepository.UpdateNameAsync"/>
+    /// synchron gehalten wird.
+    /// </summary>
     public string? NameUppercase { get; set; }
 
-    // Navigations-Eigenschaften = der Weg von einer Person zu ihren verknüpften Datensätzen.
-    // ICollection<T> = "eine Sammlung von T-Objekten". "= new List<...>()" = startet als leere Liste,
-    //                  damit man sofort hinzufügen kann, ohne erst auf null prüfen zu müssen.
-    // EF Core befüllt diese Listen, wenn wir im Repository .Include(...) verwenden.
-    public ICollection<Anschrift> Anschriften { get; set; } = new List<Anschrift>();                 // 1 Person : n Anschriften
-    public ICollection<Telefonverbindung> Telefonverbindungen { get; set; } = new List<Telefonverbindung>();   // 1 Person : n Telefonnummern
+    /// <summary>
+    /// Anschriften der Person (1:n). Mit leerer Liste vorinitialisiert; befüllt durch
+    /// explizites Eager Loading (<c>Include</c>) im Repository.
+    /// </summary>
+    public ICollection<Anschrift> Anschriften { get; set; } = new List<Anschrift>();
+
+    /// <summary>
+    /// Telefonverbindungen der Person (1:n). Mit leerer Liste vorinitialisiert; befüllt
+    /// durch explizites Eager Loading (<c>Include</c>) im Repository.
+    /// </summary>
+    public ICollection<Telefonverbindung> Telefonverbindungen { get; set; } = new List<Telefonverbindung>();
 }

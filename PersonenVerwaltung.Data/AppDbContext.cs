@@ -1,55 +1,62 @@
-// using = "ich möchte Code aus diesem Bereich (Namespace) benutzen, ohne jedes Mal den vollen Namen zu schreiben".
-using Microsoft.EntityFrameworkCore;   // Entity Framework Core (EF Core) = das ORM, das C#-Objekte <-> Datenbank-Tabellen übersetzt.
-using PersonenVerwaltung.Data.Models;  // unsere eigenen Modell-Klassen: Person, Anschrift, Telefonverbindung.
+using Microsoft.EntityFrameworkCore;
+using PersonenVerwaltung.Data.Models;
 
-// namespace = "Ordner/Schublade" für Klassen, damit Namen sich nicht überschneiden.
 namespace PersonenVerwaltung.Data;
 
-// WAS IST DAS: Die zentrale Datenbank-Klasse (der "DbContext") von Entity Framework Core.
-// WARUM BRAUCHEN WIR DAS: Sie ist die Brücke zwischen unserem C#-Code und der PostgreSQL-Datenbank;
-//                         über sie lesen und schreiben wir Daten, ohne selbst SQL schreiben zu müssen.
-// IM VORSTELLUNGSGESPRÄCH SAGEN:
-//   "Der AppDbContext ist mein Zugang zur Datenbank. EF Core ist ein ORM (Object-Relational Mapper):
-//    Es bildet jede Tabelle als C#-Klasse ab. Ich arbeite mit normalen Objekten, und EF Core erzeugt
-//    daraus im Hintergrund das passende SQL."
-public class AppDbContext : DbContext   // ": DbContext" = wir erben von DbContext, der Basis-Klasse von EF Core. Erben = wir bekommen alle Fähigkeiten von DbContext geschenkt.
+/// <summary>
+/// Entity-Framework-Core-Kontext und zentraler Zugangspunkt der Datenschicht zur
+/// PostgreSQL-Datenbank. Kapselt das objektrelationale Mapping sowie die
+/// Konfiguration der Entitäten und ihrer Beziehungen.
+/// </summary>
+/// <remarks>
+/// Das physische Schema wird durch <c>database/init.sql</c> definiert; dieser Kontext
+/// verwendet keine EF-Migrationen, sondern bildet das bestehende Schema ab. Die
+/// Konfiguration in <see cref="OnModelCreating"/> muss daher mit dem SQL-Skript
+/// konsistent gehalten werden.
+/// </remarks>
+public class AppDbContext : DbContext
 {
-    // Konstruktor = Methode, die beim Erzeugen des Objekts läuft. Hier werden die Einstellungen
-    // (z.B. welche Datenbank, welche Verbindungszeichenfolge) hineingereicht.
-    // "options" kommt von außen (Dependency Injection in Program.cs) -> "base(options)" gibt sie an DbContext weiter.
+    /// <summary>
+    /// Initialisiert den Kontext mit den per Dependency Injection bereitgestellten
+    /// Optionen (u. a. Verbindungszeichenfolge und Provider), die in <c>Program.cs</c>
+    /// konfiguriert werden.
+    /// </summary>
+    /// <param name="options">Vom DI-Container gelieferte Kontextoptionen.</param>
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    // DbSet<T> = "eine Tabelle als Liste in C#". Jeder DbSet entspricht einer Tabelle in der DB.
-    // Über diese Eigenschaften stellen wir Abfragen (z.B. _db.Personen.Where(...)).
-    // { get; set; } = automatische Eigenschaft (Property): EF Core befüllt sie selbst.
-    public DbSet<Person> Personen { get; set; }                          // Tabelle "Person"
-    public DbSet<Anschrift> Anschriften { get; set; }                    // Tabelle "Anschrift"
-    public DbSet<Telefonverbindung> Telefonverbindungen { get; set; }    // Tabelle "Telefonverbindung"
+    /// <summary>Zugriff auf die Tabelle <c>Person</c>.</summary>
+    public DbSet<Person> Personen { get; set; }
 
-    // WAS MACHT DIESE METHODE: Sie konfiguriert, wie die C#-Klassen genau auf die DB-Tabellen abgebildet werden.
-    // WARUM: Unsere Tabellen heißen im Singular (Person, Anschrift, ...) und es gibt feste Regeln für
-    //        Fremdschlüssel. Das müssen wir EF Core hier explizit mitteilen.
-    // "override" = wir überschreiben eine Methode, die EF Core uns vorgibt, mit unserer eigenen Variante.
+    /// <summary>Zugriff auf die Tabelle <c>Anschrift</c>.</summary>
+    public DbSet<Anschrift> Anschriften { get; set; }
+
+    /// <summary>Zugriff auf die Tabelle <c>Telefonverbindung</c>.</summary>
+    public DbSet<Telefonverbindung> Telefonverbindungen { get; set; }
+
+    /// <summary>
+    /// Konfiguriert das Mapping der Entitäten auf das vorgegebene Datenbankschema:
+    /// Tabellennamen im Singular sowie die 1:n-Beziehungen mit eingeschränktem
+    /// Löschverhalten zur Wahrung der referentiellen Integrität.
+    /// </summary>
+    /// <param name="modelBuilder">Der von EF Core bereitgestellte Model-Builder.</param>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Standardmäßig würde EF Core Tabellen im Plural erwarten ("People"). Unsere SQL-Datei
-        // (database/init.sql) benutzt aber Singular. Darum mappen wir die Namen hier von Hand.
-        // Wichtig: Die DB-Struktur kommt aus init.sql, NICHT aus EF-Migrationen -> wir müssen sie passend abbilden.
+        // Die EF-Core-Pluralisierungskonvention ("People") wird überschrieben, da das
+        // Schema aus init.sql Tabellennamen im Singular verwendet.
         modelBuilder.Entity<Person>().ToTable("Person");
         modelBuilder.Entity<Anschrift>().ToTable("Anschrift");
         modelBuilder.Entity<Telefonverbindung>().ToTable("Telefonverbindung");
 
-        // Fremdschlüssel (Foreign Key) = Verweis von einer Tabelle auf eine andere.
-        // Eine Anschrift "gehört" zu genau einer Person (PersonId zeigt auf Person.Id).
-        // DeleteBehavior.Restrict = "Verbieten zu löschen, solange noch Anschriften dranhängen"
-        //   -> referentielle Integrität: keine verwaisten Datensätze. Genau so eine Anforderung der Aufgabe.
+        // DeleteBehavior.Restrict (ON DELETE NO ACTION) verhindert das Löschen einer
+        // Person, solange abhängige Anschriften existieren. Bewusste Entscheidung zur
+        // Sicherung der referentiellen Integrität gemäß Anforderung – keine Kaskadierung.
         modelBuilder.Entity<Anschrift>()
-            .HasOne(a => a.Person)                 // eine Anschrift hat EINE Person ...
-            .WithMany(p => p.Anschriften)          // ... und eine Person hat VIELE Anschriften (1:n-Beziehung).
-            .HasForeignKey(a => a.PersonId)        // die Spalte, die die beiden verbindet.
-            .OnDelete(DeleteBehavior.Restrict);    // Löschen der Person blockieren, falls noch Anschriften existieren.
+            .HasOne(a => a.Person)
+            .WithMany(p => p.Anschriften)
+            .HasForeignKey(a => a.PersonId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-        // Gleiches Prinzip für Telefonverbindungen: 1 Person : n Telefonnummern, Löschen geschützt.
+        // Identische Beziehungskonfiguration für Telefonverbindungen.
         modelBuilder.Entity<Telefonverbindung>()
             .HasOne(t => t.Person)
             .WithMany(p => p.Telefonverbindungen)
